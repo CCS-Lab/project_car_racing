@@ -18,11 +18,11 @@ def _moving_average(interval, window_size):
 
 
 # -------Parameters----------
-CAPACITY = 5_000
+CAPACITY = 10000
 SKIP_N = 4
 
-frames = 50_000
-TARGET_UPDATE_FREQUENCY = 1_000
+frames = 5_000_000
+TARGET_UPDATE_FREQUENCY = 1000
 
 EPSILON_METHOD = "linear"
 EPSILON_FRAMES = int(0.1 * frames)
@@ -77,7 +77,7 @@ agent.train(n_frames=frames, C=TARGET_UPDATE_FREQUENCY, render=False)
 evaluator = AtariEvaluator(model, os.path.join(save_path, "best_model.pth"), device)
 
 # Play once
-evaluator.record(env, os.path.join("results", "videos", name))
+#evaluator.record(env, os.path.join("results", "videos", name))
 
 # Get average score
 scores = evaluator.play(10, env, render=False)

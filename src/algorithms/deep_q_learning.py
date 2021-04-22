@@ -93,6 +93,7 @@ class DQNAgent:
             pre_fill_frames = self.memory.capacity  # min(self.memory.capacity, int(n_frames * 0.1))
             print("Getting {} random memories...".format(pre_fill_frames))
             self._fill_memory_with_random(pre_fill_frames, False, clip_rewards, skip_n)
+            self.env.close()
 
         print("Starting training...\n")
         frame = starting_frame
@@ -120,6 +121,7 @@ class DQNAgent:
                 )
                 self.memory.update(state, action, reward.float(), next_state)
                 state = next_state
+                
 
                 # Update
                 if frame > (frames_before_train - 1):
@@ -138,6 +140,7 @@ class DQNAgent:
 
                 if is_done:
                     self.logger.update(episode_reward, episode_loss, self.model)
+                    self.env.close()
         except KeyboardInterrupt:
             # Save the current data so we can produce a full chart
             # if we restart training later
@@ -160,7 +163,7 @@ class DQNAgent:
             self.logger.plot_reward(save=True)
 
         # Clean-up
-        self.env.close()
+        #self.env.close()
         pbar.close()
 
     def _fill_memory_with_random(self, n_frames, render, clip_rewards, skip_n):
