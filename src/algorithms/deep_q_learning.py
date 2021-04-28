@@ -45,7 +45,7 @@ class DQNAgent:
         self._rewards = []
         self._losses = []
 
-        self.optimizer = optim.RMSprop(self.model.parameters(), lr=2.5e-4)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
 
         self.logger = logger
 
