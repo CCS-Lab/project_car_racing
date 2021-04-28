@@ -45,7 +45,7 @@ class DQNAgent:
         self._rewards = []
         self._losses = []
 
-        self.optimizer = optim.RMSprop(self.model.parameters(), lr=2.5e-4)
+        self.optimizer = optim.RMSprop(self.model.parameters(), lr=1e-3)
 
         self.logger = logger
 
@@ -115,6 +115,8 @@ class DQNAgent:
                     episode_reward = 0.0
                     episode_loss = 0.0
                     is_done = False
+                    negative_reward_counter=0
+                    epidoe_frame=0
 
                 action, reward, is_done, next_state = self._act(
                     state, frame, is_done, render, clip_rewards, skip_n
@@ -126,19 +128,28 @@ class DQNAgent:
                 # Update
                 if frame > (frames_before_train - 1):
                     loss = self._update_model(gamma, batch_size)
-
+                    
                     if frame % C == 0:
                         self._update_target_model()
+                        print("target_update_model")
                 else:
                     loss = 0.0
 
                 episode_loss += loss
                 episode_reward += reward.item()
                 frame += 1
+                epidoe_frame+=1
+                negative_reward_counter = negative_reward_counter + 1 if epidoe_frame > 300 and reward.item() < 0 else 0
                 if frame % 10 == 0:
                     pbar.update()
 
-                if is_done:
+                if is_done or negative_reward_counter >= 20 or episode_reward < -200:
+                    print(is_done)
+                    print(episode_reward)
+                    print(negative_reward_counter)
+                    epidoe_frame=0
+                    negative_reward_counter=0
+                    is_done = True
                     self.logger.update(episode_reward, episode_loss, self.model)
                     self.env.close()
         except KeyboardInterrupt:
