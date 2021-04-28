@@ -18,17 +18,20 @@ def _moving_average(interval, window_size):
 
 
 # -------Parameters----------
-CAPACITY = 10_000
+CAPACITY = 1_000
 SKIP_N = 4
 
-frames = 5_000_000
-TARGET_UPDATE_FREQUENCY = 1_000
+frames = 50_000
+TARGET_UPDATE_FREQUENCY = 1000
+#print(frames)
+#frames = 50000
+#print(frames)
+
 
 EPSILON_METHOD = "linear"
 EPSILON_FRAMES = int(0.1 * frames)
 EPSILON_ARGS = [EPSILON_METHOD, EPSILON_FRAMES]
 EPSILON_KWARGS = {"epsilon_min": 0.1}
-
 
 # ------Env------------------
 name = "CarRacing-v0"
@@ -50,6 +53,7 @@ model = DDQN(SKIP_N, 84, n_actions).to(device)
 target_model = DDQN(SKIP_N, 84, n_actions).to(device)
 target_model.load_state_dict(model.state_dict())
 target_model.eval()
+print('1')
 
 memory = ReplayMemory(CAPACITY)
 
@@ -64,23 +68,26 @@ logger = Logger(
     C=TARGET_UPDATE_FREQUENCY,
     capacity=CAPACITY,
 )
-
 # ------Training--------------
+#/
 agent = DoubleDQNAtariAgent(
     model, target_model, env, memory, logger, *EPSILON_ARGS, **EPSILON_KWARGS
 )
-agent.train(n_frames=frames, C=TARGET_UPDATE_FREQUENCY, render=False)
+
+agent.train(n_frames=frames, C=TARGET_UPDATE_FREQUENCY, render=True)
+
 # This saves a model to results/models/CarRacing-v0
 
 
 # ------Evaluating------------
 evaluator = AtariEvaluator(model, os.path.join(save_path, "best_model.pth"), device)
+print('5')
 
 # Play once
 #evaluator.record(env, os.path.join("results", "videos", name))
 
 # Get average score
-scores = evaluator.play(10, env, render=False)
+scores = evaluator.play(10, env, render=True)
 print(
     "{:.3f} +/- {:.1f}".format(np.mean(scores), np.std(scores) / np.sqrt(len(scores)))
 )
