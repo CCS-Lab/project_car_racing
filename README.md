@@ -5,18 +5,12 @@
 This is a basic implementation of Deep Q Learning. We have implemented linear and convolutional DQN and DDQN models, with 
 DQN and double DQN algorithms
 
-Next steps:
-* Model trained on Atari games
-* Prioritized Experience Replay
-
 ## To run
 To begin, setup [OpenAI gym](https://gym.openai.com/) and install the packages in `requirements.txt`.
 
-We have an example script which trains a model on the CartPoleSwingUp environment (this requires gym <= 0.9.4).
-Run `python -m examples.cartpoleswingup_linear` in the top-level directory.
+Run `python -m examples.box2d_ddqn` in the top-level directory.
 
-(To run Box2D environments, I used [this Docker container](https://github.com/TTitcombe/docker_openai_gym) - 
-check it out if you are also having problems installing Gym)
+To run the car racing for human control, 'python car_drrive.py' in the top-level directory.
 
 ## Results
 The best models trained on each env are present in `results/models/`. There you will find the saved pytorch model as a `.pth` file and
