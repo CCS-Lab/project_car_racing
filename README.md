@@ -10,7 +10,7 @@ To begin, setup [OpenAI gym](https://gym.openai.com/) and install the packages i
 
 Run `python -m examples.box2d_ddqn` in the top-level directory.
 
-To run the car racing for human control, 'python car_drrive.py' in the top-level directory.
+To run the car racing for human control, `python car_drrive.py` in the top-level directory.
 
 ## Results
 The best models trained on each env are present in `results/models/`. There you will find the saved pytorch model as a `.pth` file and
