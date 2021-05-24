@@ -157,7 +157,8 @@ class ClipRewardEnv(gym.RewardWrapper):
 
     def reward(self, reward):
         """Bin reward to {+1, 0, -1} by its sign."""
-        return np.sign(reward)
+        #return np.sign(reward)
+        return reward
 
 
 class WarpFrame(gym.ObservationWrapper):
@@ -210,6 +211,7 @@ class WarpFrame(gym.ObservationWrapper):
         else:
             obs = obs.copy()
             obs[self._key] = frame
+        
         return obs
 
 
@@ -360,8 +362,10 @@ def wrap_no_image(
     return FrameStack(env, skip_n)
 
 
-NUM_ACTIONS = 4
-ALLOWED_ACTIONS = [[-1, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]]
+#NUM_ACTIONS = 9
+#ALLOWED_ACTIONS = [[-1, 0, 0], [1, 0, 0],[-1, 1, 0],[1, 1, 0],[-1, 0, 1],[1, 0, 1], [0, 1, 0], [0, 0, 1],[0,0,0]]
+NUM_ACTIONS = 5
+ALLOWED_ACTIONS = [[-1, 0, 0], [1, 0, 0],[0, 1, 0], [0, 0, 1],[0,0,0]]
 
 
 class DiscreteCarRacing(gym.Wrapper):

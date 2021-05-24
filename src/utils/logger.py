@@ -3,6 +3,8 @@ import numpy as np
 import os
 import pickle
 from torch import save as tsave
+from matplotlib import animation
+import imageio
 
 from .general_functions import create_dir
 
@@ -15,6 +17,7 @@ class Logger:
         save_best=False,
         log_every=50,
         log_style="block",
+        save_longest=True,
         **training_kwargs
     ):
         self.save_path = save_path
@@ -23,10 +26,12 @@ class Logger:
         self._save_every = save_every
 
         self._save_best = save_best
+        self._save_longest = save_longest
         self.best_reward = -np.inf
-
+        self.longest=0
         self._rewards = []
         self._losses = []
+        self._frame_imgs=[]
 
         self._block_rewards = []
         self._block_losses = []
@@ -46,22 +51,31 @@ class Logger:
         self._block_losses = []
         self.random_rewards = []
         self.episode = 0
-
-    def update(self, reward, loss, model):
+        
+    def update(self, reward, loss, model, n_frame,frame_imgs):
         self.episode += 1
         self._block_rewards.append(reward)
         self._block_losses.append(loss)
-
+        self._frame_imgs=frame_imgs
         if self.episode % self.log_every == 0:
             self.report()
 
         if self._save_best and reward > self.best_reward:
             self.best_reward = reward
             self.training_kwargs.update({"model_state_dict": model.state_dict()})
-            tsave(self.training_kwargs, os.path.join(self.save_path, "best_model.pth"))
+            tsave(self.training_kwargs, os.path.join(self.save_path, "best_model{}.pth".format(np.round(reward,3))))
+            filename="best_model{}.gif".format(np.round(reward,3))
+            self.save_frames_as_gif(filename="best_model{}.gif".format(np.round(reward,3)))
+
+
+        if self._save_longest and n_frame > self.longest:
+            self.longest = n_frame
+            self.training_kwargs.update({"model_state_dict": model.state_dict()})
+            tsave(self.training_kwargs, os.path.join(self.save_path, "longest_model{}.pth".format(n_frame)))
 
         if self.episode % self._save_every == 0:
-            tsave(model, os.path.join(self.save_path, "{}.pth").format(self.episode))
+            self.training_kwargs.update({"model_state_dict": model.state_dict()})
+            tsave(self.training_kwargs, os.path.join(self.save_path, "epi{}.pth".format(self.episode)))
 
     def report(self):
         if self.log_style == "continuous":
@@ -135,6 +149,10 @@ class Logger:
         if show:
             plt.show()
 
+    def save_frames_as_gif(self,path='gif/', filename='racing.gif'):
+        with imageio.get_writer(filename, mode="I") as writer:
+            for idx, frame in enumerate(self._frame_imgs):
+                writer.append_data(frame)            
     @staticmethod
     def _moving_average(interval, window_size):
         window = np.ones(int(window_size)) / float(window_size)

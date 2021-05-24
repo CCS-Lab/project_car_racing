@@ -1,6 +1,7 @@
 import cv2
 import gym
 import torch
+import numpy as np
 
 from src.utils.general_functions import torch_from_frame
 
@@ -66,60 +67,46 @@ class AtariEvaluator(AgentEvaluation):
         is_done = True
         self.env = env
         while episodes_played < n:
+                # If episode has finished, start a new one
             if is_done:
-                self.env.reset()
-                state = self._get_state_from_frame(None)
-
+                episode_count += 1
+                state = self._get_initial_state(skip_n)
                 if render:
                     self.env.render()
-                state = torch.cat([state] * 4, dim=1)
-                is_done = False
                 episode_reward = 0.0
-
+                episode_loss = 0.0
+                is_done = False
+                #while(self.env.t<1):
+                #    self.env.step(8)
             with torch.no_grad():
                 action = self.model(state).max(1)[1].view(1, 1)
-            next_state = None
-            for _ in range(skip_n):
-                new_state, reward, is_done, _ = env.step(action.item())
-                if render:
-                    env.render()
-                new_state = self._get_state_from_frame(None)
-                episode_reward += reward
-                if is_done:
-                    break
-                next_state = (
-                    new_state
-                    if next_state is None
-                    else torch.cat((next_state, new_state), dim=1)
-                )
+            new_state, reward, is_done, _ = env.step(action.item())
+            episode_reward += reward
+            if render:
+                self.env.render()
             state = next_state
-
+            
             if is_done:
                 rewards.append(episode_reward)
                 episodes_played += 1
+                self.env.close()
+ 
         return rewards
 
-    def _get_state_from_frame(self, _):
-        # Get the frame
-        frame = self.env.render(mode="rgb_array")
+    def _get_initial_state(self, skip_n):
+        return self.env.reset()
+    
+    def _get_state_from_frame(self, frame):
+        if frame is None:
+            return frame
 
-        # Resize
-        frame = cv2.resize(frame, (84, 84))
+        state = np.array(frame)
 
-        # Transpose it to channels x height x width
-        frame = frame.transpose((2, 0, 1))
-
-        # Convert to greyscale
-        # Taken from https://github.com/ttaoREtw/Flappy-Bird-Double-DQN-Pytorch/blob/master/env.py
-        luma = [0.2989, 0.5870, 0.1140]
-        frame = (
-            luma[0] * frame[0, :, :]
-            + luma[1] * frame[1, :, :]
-            + luma[2] * frame[2, :, :]
-        )
+        # Make it channels x height x width
+        state = state.transpose((2, 0, 1))
 
         # Scale
-        frame = frame.astype("float32") / 255.0
+        state = state.astype("float32")
 
-        # Convert to torch tensor and add a batch dimension
-        return torch.from_numpy(frame).unsqueeze(0).unsqueeze(0).to(self.device)
+        # To torch
+        return torch.from_numpy(state).unsqueeze(0).to(self.device)

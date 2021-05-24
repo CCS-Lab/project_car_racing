@@ -18,23 +18,20 @@ def _moving_average(interval, window_size):
 
 
 # -------Parameters----------
-CAPACITY = 1_000
+CAPACITY = 10_000
 SKIP_N = 4
 
-frames = 50_000
+frames = 500_000
 TARGET_UPDATE_FREQUENCY = 1000
-#print(frames)
-#frames = 50000
-#print(frames)
-
 
 EPSILON_METHOD = "linear"
-EPSILON_FRAMES = int(0.1 * frames)
+EPSILON_FRAMES = int(0.6 * frames)
 EPSILON_ARGS = [EPSILON_METHOD, EPSILON_FRAMES]
-EPSILON_KWARGS = {"epsilon_min": 0.1}
+EPSILON_KWARGS = {"epsilon_min": 0.02, "epsilon_max": 1}
 
 # ------Env------------------
 name = "CarRacing-v0"
+save_path = os.path.join("results", "models", name)
 env = gym.make(
     name, verbose=0
 )  # Verbosity off for CarRacing - track generation info can get annoying!
@@ -48,12 +45,16 @@ else:
 n_actions = env.action_space.n
 
 # -------Models--------------
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+GPU_NUM = 1 # 원하는 GPU 번호 입력
+device = torch.device(f'cuda:{GPU_NUM}' if torch.cuda.is_available() else 'cpu')
+torch.cuda.set_device(device) 
 model = DDQN(SKIP_N, 84, n_actions).to(device)
 target_model = DDQN(SKIP_N, 84, n_actions).to(device)
+#checkpoint = torch.load(os.path.join(save_path, "epi1500.pth"))
+#model.load_state_dict(checkpoint["model_state_dict"])
+#model.eval()
 target_model.load_state_dict(model.state_dict())
 target_model.eval()
-print('1')
 
 memory = ReplayMemory(CAPACITY)
 
@@ -63,7 +64,7 @@ save_path = os.path.join("results", "models", name)
 logger = Logger(
     save_path,
     save_best=True,
-    save_every=50,
+    save_every=500,
     log_every=25,
     C=TARGET_UPDATE_FREQUENCY,
     capacity=CAPACITY,
@@ -73,21 +74,20 @@ logger = Logger(
 agent = DoubleDQNAtariAgent(
     model, target_model, env, memory, logger, *EPSILON_ARGS, **EPSILON_KWARGS
 )
-
 agent.train(n_frames=frames, C=TARGET_UPDATE_FREQUENCY, render=True)
+
 
 # This saves a model to results/models/CarRacing-v0
 
 
 # ------Evaluating------------
-evaluator = AtariEvaluator(model, os.path.join(save_path, "best_model.pth"), device)
-print('5')
+#evaluator = AtariEvaluator(model, os.path.join(save_path, "best_model.pth"), device)
 
 # Play once
 #evaluator.record(env, os.path.join("results", "videos", name))
 
 # Get average score
-scores = evaluator.play(10, env, render=True)
-print(
-    "{:.3f} +/- {:.1f}".format(np.mean(scores), np.std(scores) / np.sqrt(len(scores)))
-)
+#scores = evaluator.play(10, env, render=False)
+#print(
+#    "{:.3f} +/- {:.1f}".format(np.mean(scores), np.std(scores) / np.sqrt(len(scores)))
+#)

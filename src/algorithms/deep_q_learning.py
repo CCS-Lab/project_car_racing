@@ -8,7 +8,7 @@ from tqdm import tqdm
 from src.utils.epsilon_greedy import Epsilon
 from src.utils.general_functions import torch_from_frame
 from src.utils.replay_memory import Transition, ReplayMemory
-
+import cv2
 
 class DQNAgent:
     """
@@ -34,6 +34,9 @@ class DQNAgent:
                                     maximum and minimum values for epsilon
         """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        GPU_NUM = 1 # 원하는 GPU 번호 입력
+        self.device = torch.device(f'cuda:{GPU_NUM}' if torch.cuda.is_available() else 'cpu')
+        torch.cuda.set_device(self.device)
 
         self.model = model
         self.target_model = target_model  # Model to use in calculating rewards
@@ -45,11 +48,7 @@ class DQNAgent:
         self._rewards = []
         self._losses = []
 
-<<<<<<< HEAD
         self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
-=======
-        self.optimizer = optim.RMSprop(self.model.parameters(), lr=1e-3)
->>>>>>> 099f3a0bdc5b471df2b2390370045659874fc4b8
 
         self.logger = logger
 
@@ -57,7 +56,7 @@ class DQNAgent:
         checkpoint = torch.load(path)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.target_model.load_state_dict(self.model.state_dict())
-
+        
     def fill_memory(self, skip_n=4, clip_rewards=True):
         frame = 0
         is_done = True
@@ -83,11 +82,12 @@ class DQNAgent:
         gamma=0.999,
         batch_size=32,
         render=True,
-        clip_rewards=True,
+        clip_rewards=False,
         skip_n=4,
-        pre_fill_memory=True,
+        pre_fill_memory=False,
         starting_frame=0,
         frames_before_train=0,
+        path=None
     ):
         # TODO This should be refactored out of the agent class
         # TODO the agent class should only contain the update rules for the algorithm
@@ -98,12 +98,14 @@ class DQNAgent:
             print("Getting {} random memories...".format(pre_fill_frames))
             self._fill_memory_with_random(pre_fill_frames, False, clip_rewards, skip_n)
             self.env.close()
-
+        if path is not None:
+            self.load_model(path)
         print("Starting training...\n")
         frame = starting_frame
         n_frames = n_frames + starting_frame
         is_done = True
         episode_count = 0
+        avg_frame=0
 
         pbar = tqdm(total=n_frames//10)
         try:
@@ -111,6 +113,7 @@ class DQNAgent:
 
                 # If episode has finished, start a new one
                 if is_done:
+                    frame_imgs = []
                     episode_count += 1
                     state = self._get_initial_state(skip_n)
                     if render:
@@ -120,42 +123,66 @@ class DQNAgent:
                     episode_loss = 0.0
                     is_done = False
                     negative_reward_counter=0
-                    epidoe_frame=0
+                    episode_frame=0
+                    out_track=False
+                    while(self.env.t<1):
+                        state, reward, is_done, _=self.env.step(4)
 
                 action, reward, is_done, next_state = self._act(
                     state, frame, is_done, render, clip_rewards, skip_n
                 )
+                #if action.item() not in [6, 7, 8] and reward.item() > 0:
+                #,     reward=reward
+                episode_frame+=1
+                negative_reward_counter = negative_reward_counter + 1 if reward.item() < 0 else 0
+                #if negative_reward_counter>20 and episode_reward<500:
+                #    reward=reward-100
+                
+                if is_done is False:
+                    last_img=np.array(next_state)
+                    last_img=last_img[:,:,3]
+                    frame_imgs.append(last_img)
+                    #print(np.mean(last_img[55:70,37:47]))
+                    #cv2.imwrite('image/car{}.jpg'.format(frame), last_img[55:70,37:47]) #car position
+                    #frame_imgs.append(last_img[55:70,37:47])
+                    if np.mean(last_img[55:70,37:47])>120.0:
+                        reward=reward-500
+                        out_track=True
+
                 self.memory.update(state, action, reward.float(), next_state)
                 state = next_state
-                
+
 
                 # Update
                 if frame > (frames_before_train - 1):
                     loss = self._update_model(gamma, batch_size)
-                    
                     if frame % C == 0:
                         self._update_target_model()
-                        print("target_update_model")
                 else:
                     loss = 0.0
 
                 episode_loss += loss
                 episode_reward += reward.item()
                 frame += 1
-                epidoe_frame+=1
-                negative_reward_counter = negative_reward_counter + 1 if epidoe_frame > 300 and reward.item() < 0 else 0
                 if frame % 10 == 0:
                     pbar.update()
 
-                if is_done or negative_reward_counter >= 20 or episode_reward < -200:
-                    print(is_done)
-                    print(episode_reward)
-                    print(negative_reward_counter)
-                    epidoe_frame=0
+                if is_done or negative_reward_counter > 100 or out_track or frame==n_frames:
+                    self.logger.update(episode_reward, episode_loss, self.model,episode_frame,frame_imgs)
+                    self.env.close()
+                    avg_frame+=episode_frame
+                    episode_frame=0
                     negative_reward_counter=0
                     is_done = True
-                    self.logger.update(episode_reward, episode_loss, self.model)
-                    self.env.close()
+                    if episode_count % 25 == 0:
+                        avg_frame=avg_frame/25
+                        print("avg frames: {}".format(avg_frame))
+                        avg_frame=0
+                        print("current_epsilon: {}".format(self.epsilon(frame)))
+                        #last_img=np.array(state)
+                        #last_img=last_img[:,:,3]
+                        #cv2.imwrite('image/graystate.jpg', last_img)
+
         except KeyboardInterrupt:
             # Save the current data so we can produce a full chart
             # if we restart training later
@@ -322,7 +349,7 @@ class DQNAtariAgent(DQNAgent):
         state = state.transpose((2, 0, 1))
 
         # Scale
-        state = state.astype("float32") / 255.0
+        state = state.astype("float32")
 
         # To torch
         return torch.from_numpy(state).unsqueeze(0).to(self.device)
